@@ -1,0 +1,278 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environmentName": {
+            "type": "string",
+            "defaultValue": "Test",
+            "allowedValues": [
+              "Production",
+              "Develop",
+              "Test"
+            ]
+        },
+        "applicationName": {
+            "type": "string",
+            "defaultValue": "Test"
+        },
+        "slotName": {
+            "type": "string",
+            "defaultValue": "Staging"
+          },
+        "skuName": {
+            "type": "string",
+            "defaultValue": "S1",
+            "allowedValues": [
+            "F1",
+            "D1",
+            "B1",
+            "B2",
+            "B3",
+            "S1",
+            "S2",
+            "S3",
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+            ],
+            "metadata": {
+            "description": "Describes plan's pricing tier and instance size. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+            }
+        },
+        "skuCapacity": {
+            "type": "int",
+            "defaultValue": 1,
+            "minValue": 1,
+            "maxValue": 3,
+            "metadata": {
+            "description": "Describes plan's instance count"
+            }
+        },
+        "sqlAdministratorLogin": {
+            "type": "string",
+            "metadata": {
+            "description": "The admin user of the SQL Server"
+            }
+        },
+        "sqlAdministratorLoginPassword": {
+            "type": "securestring",
+            "metadata": {
+            "description": "The password of the admin user of the SQL Server"
+            }
+        }      
+    },
+    "variables": {
+        "hostingPlanName": "[concat(parameters('applicationName'),'-ServicePlan-', parameters('environmentName'))]",
+        "webAppName": "[concat(parameters('applicationName'),'-WebApp-', parameters('environmentName'))]",
+        "appInsightsName": "[concat(parameters('applicationName'),'-AppIns-', parameters('environmentName'))]",
+        "sqlserverName": "[toLower(concat(parameters('applicationName'),'-Dataserver-', parameters('environmentName')))]",
+        "databaseName": "[concat(parameters('applicationName'),'-DB-', parameters('environmentName'))]",
+        "servicebusNamespaceName": "[concat(parameters('applicationName'),'-ServiceBus-', parameters('environmentName'))]",
+        "defaultSASKeyName": "RootManageSharedAccessKey",
+        "authRuleResourceId": "[resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', variables('servicebusNamespaceName'), variables('defaultSASKeyName'))]",
+        "sbVersion": "2017-04-01"
+      },
+      "resources": [
+        {
+            "name": "[variables('sqlserverName')]",
+            "type": "Microsoft.Sql/servers",
+            "location": "[resourceGroup().location]",
+            "tags": {
+              "displayName": "SqlServer"
+            },
+            "apiVersion": "2014-04-01",
+            "properties": {
+              "administratorLogin": "[parameters('sqlAdministratorLogin')]",
+              "administratorLoginPassword": "[parameters('sqlAdministratorLoginPassword')]",
+              "version": "12.0"
+            },
+            "resources": [
+              {
+                "name": "[variables('databaseName')]",
+                "type": "databases",
+                "location": "[resourceGroup().location]",
+                "tags": {
+                  "displayName": "Database"
+                },
+                "apiVersion": "2015-01-01",
+                "dependsOn": [
+                  "[variables('sqlserverName')]"
+                ],
+                "properties": {
+                  "edition": "Basic",
+                  "collation": "SQL_Latin1_General_CP1_CI_AS",
+                  "maxSizeBytes": "1073741824",
+                  "requestedServiceObjectiveName": "Basic"
+                }
+              },
+              {
+                "type": "firewallrules",
+                "apiVersion": "2014-04-01",
+                "dependsOn": [
+                  "[variables('sqlserverName')]"
+                ],
+                "location": "[resourceGroup().location]",
+                "name": "AllowAllWindowsAzureIps",
+                "properties": {
+                  "endIpAddress": "0.0.0.0",
+                  "startIpAddress": "0.0.0.0"
+                }
+              }
+            ]
+          },
+          {
+            "apiVersion": "2017-04-01",
+            "name": "[variables('servicebusNamespaceName')]",
+            "type": "Microsoft.ServiceBus/namespaces",
+            "location": "[resourceGroup().location]",
+            "tags": {
+              "displayName": "ServiceBus"
+            },
+            "sku": {
+              "name": "Standard"
+            },
+            "properties": {}
+          },
+          {
+            "apiVersion": "2015-05-01",
+            "name": "[variables('appInsightsName')]",
+            "type": "Microsoft.Insights/components",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [],
+            "tags": {
+              "[concat('hidden-link:', resourceId('Microsoft.Web/sites', variables('webAppName')))]": "Resource",
+              "displayName": "AppInsightsComponent"
+            },
+            "properties": {
+              "ApplicationId": "[variables('webAppName')]",
+              "Application_Type":"web"
+            }
+          },          
+          {
+            "apiVersion": "2016-03-01",
+            "name": "[variables('hostingPlanName')]",
+            "type": "Microsoft.Web/serverfarms",
+            "location": "[resourceGroup().location]",
+            "tags": {
+              "displayName": "HostingPlan"
+            },
+            "sku": {
+              "name": "[parameters('skuName')]",
+              "capacity": "[parameters('skuCapacity')]"
+            },
+            "properties": {
+              "name": "[variables('hostingPlanName')]"
+            }
+          },
+          {
+            "apiVersion": "2016-03-01",
+            "name": "[variables('webAppName')]",
+            "type": "Microsoft.Web/sites",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+              "[variables('hostingPlanName')]"
+            ],
+            "tags": {
+              "[concat('hidden-related:', resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName')))]": "empty",
+              "displayName": "WebApp"
+            },
+            "properties": {
+              "name": "[variables('webAppName')]",
+              "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
+            },
+            "resources": [
+              {
+                "apiVersion": "2015-08-01",
+                "name": "[parameters('slotName')]",
+                "type": "slots",
+                "tags": {
+                  "displayName": "Staging slot"
+                },
+                "location": "[resourceGroup().location]",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]"
+                ],
+                "properties": {},
+                "resources": [
+                  {
+                    "apiVersion": "2015-08-01",
+                    "type": "config",
+                    "name": "connectionstrings",
+                    "dependsOn": [
+                      "[resourceId('Microsoft.Web/Sites/Slots', variables('webAppName'), parameters('slotName'))]",
+                      "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]",
+                      "[resourceId('Microsoft.ServiceBus/Namespaces', variables('servicebusNameSpaceName'))]"
+                    ],
+                    "properties": {
+                      "Primary": {
+                        "value": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('sqlserverName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('databaseName'), ';User Id=', parameters('sqlAdministratorLogin'), '@', reference(concat('Microsoft.Sql/servers/', variables('sqlserverName'))).fullyQualifiedDomainName, ';Password=', parameters('sqlAdministratorLoginPassword'), ';')]",
+                        "type": "SQLAzure"
+                      },
+                      "ServiceBus": {
+                        "value": "[concat('Endpoint=sb://', variables('servicebusNameSpaceName'), '.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=', listkeys(variables('authRuleResourceId'), variables('sbVersion')).primaryKey)]",
+                        "type": "ServiceBus"
+                      }    
+                    }
+                  },
+                  {
+                    "apiVersion": "2015-08-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                      "[resourceId('Microsoft.Web/Sites/Slots', variables('webAppName'), parameters('slotName'))]"
+                    ],
+                    "properties": {
+                        "ApplicationInsights:InstrumentationKey": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), providers('Microsoft.Insights', 'components').apiVersions[0]).InstrumentationKey]"                    }
+                  }
+                ]
+              },
+              {
+                "apiVersion": "2016-03-01",
+                "type": "config",
+                "name": "connectionstrings",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]",
+                  "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]"
+                ],
+                "properties": {
+                    "Primary": {
+                      "value": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('sqlserverName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('databaseName'), ';User Id=', parameters('sqlAdministratorLogin'), '@', reference(concat('Microsoft.Sql/servers/', variables('sqlserverName'))).fullyQualifiedDomainName, ';Password=', parameters('sqlAdministratorLoginPassword'), ';')]",
+                      "type": "SQLAzure"
+                    },
+                    "ServiceBus": {
+                      "value": "[concat('Endpoint=sb://', variables('servicebusNameSpaceName'), '.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=', listkeys(variables('authRuleResourceId'), variables('sbVersion')).primaryKey)]",
+                      "type": "ServiceBus"
+                }
+                }
+              },
+              {
+                "apiVersion": "2015-08-01",
+                "type": "config",
+                "name": "appsettings",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]"
+                ],
+                "tags": {
+                  "displayName": "appsettings"
+                },
+                "properties": {
+                  "EnvironmentName": "[parameters('environmentName')]",
+                  "ApplicationInsights:InstrumentationKey": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), providers('Microsoft.Insights', 'components').apiVersions[0]).InstrumentationKey]"
+                }
+              }
+            ]
+          }                          
+    ],
+    "outputs": {
+        "websiteUri": {
+            "type": "string",
+            "value": "[reference(concat('Microsoft.Web/sites/', variables('webAppName'))).hostnames[0]]"
+        },
+        "sqlSvrFqdn": {
+            "type": "string",
+            "value": "[reference(concat('Microsoft.Sql/servers/', variables('sqlserverName'))).fullyQualifiedDomainName]"
+        }
+    }
+}
+  
