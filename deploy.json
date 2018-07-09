@@ -171,7 +171,10 @@
             "type": "Microsoft.Web/sites",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-              "[variables('hostingPlanName')]"
+              "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+              "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]",
+              "[resourceId('Microsoft.ServiceBus/Namespaces', variables('servicebusNameSpaceName'))]",
+              "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]"   
             ],
             "tags": {
               "[concat('hidden-related:', resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName')))]": "empty",
@@ -191,7 +194,10 @@
                 },
                 "location": "[resourceGroup().location]",
                 "dependsOn": [
-                  "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]"
+                  "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                  "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]",
+                  "[resourceId('Microsoft.ServiceBus/Namespaces', variables('servicebusNameSpaceName'))]",
+                  "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]"                  
                 ],
                 "properties": {},
                 "resources": [
@@ -200,9 +206,7 @@
                     "type": "config",
                     "name": "connectionstrings",
                     "dependsOn": [
-                      "[resourceId('Microsoft.Web/Sites/Slots', variables('webAppName'), parameters('slotName'))]",
-                      "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]",
-                      "[resourceId('Microsoft.ServiceBus/Namespaces', variables('servicebusNameSpaceName'))]"
+                      "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]" 
                     ],
                     "properties": {
                       "Primary": {
