@@ -3,9 +3,9 @@ Param(
     [string] $ApplicationName, 
 	[string] $ResourceGroupSuffix = "Test",
     [string] $RG_Location = "westeurope",
-	[string] $TemplateFile = ".\template.json",
-	[string] $TemplateParameterFile = ".\parameters.script.json",
-    [string] $SlotName = "Staging"
+	[string] $TemplateFile = ".\deploy.json",
+	[string] $TemplateParameterFile = ".\parameters.script.json", 
+    [string] $SlotName = "Staging"       
 )
 #create Resource Group Name
 $RG_Name = "$ApplicationName-$ResourceGroupSuffix"
@@ -20,20 +20,12 @@ elseif (!(Test-Path ".\$TemplateParameterFile"))
 }
 else 
 {
-	Write-Host "Cheking required modules loaded..." 
-	if(!(Get-Module Azure) -or !(Get-Module AzureRM))
-	{
-		Import-Module Azure
-		Import-Module AzureRM.profile
-	}
-
 	Write-Host "Checking we logged in..."
 	Get-AzureRmSubscription
-	Get-AzureSubscription
 
 	#Set parameters in parameter file and save to temp.json
 	(Get-Content ".\${TemplateParameterFile}" -Raw) `
-		-replace "{NAME}",$ApplicationName `    
+		-replace "{NAME}",$ApplicationName `
 		-replace "{SUFFIX}",$ResourceGroupSuffix `
 		-replace "{SLOTNAME}",$SlotName |
 			Set-Content .\temp.json
@@ -59,8 +51,10 @@ else
     	Write-Host $Error[0] -ForegroundColor Red 
     	exit 1 
 	} 
+	finally
+	{
+		Remove-Item .\temp.json | Out-Null
 
-	Remove-Item .\temp.json | Out-Null
-
-	Write-Host $file "Deployment complete"  -ForegroundColor Green 
+		Write-Host $file "Deployment complete"  -ForegroundColor Green
+	} 
 }
