@@ -1,0 +1,18 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "applicationName": {
+        "value": "{NAME}"
+    },      
+    "environmentName": {
+      "value": "{SUFFIX}"
+    },
+    "slotName": {
+      "value": "{SLOTNAME}"
+    },
+    "skuName": {
+      "value": "S1"
+    }
+  }
+}
