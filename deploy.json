@@ -197,7 +197,8 @@
                   "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
                   "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]",
                   "[resourceId('Microsoft.ServiceBus/Namespaces', variables('servicebusNameSpaceName'))]",
-                  "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]"                  
+                  "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+                  "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]"                  
                 ],
                 "properties": {},
                 "resources": [
@@ -206,7 +207,7 @@
                     "type": "config",
                     "name": "connectionstrings",
                     "dependsOn": [
-                      "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]" 
+                      "[resourceId('Microsoft.Web/Sites/Slots', variables('webAppName'), parameters('slotName'))]" 
                     ],
                     "properties": {
                       "Primary": {
@@ -237,7 +238,8 @@
                 "name": "connectionstrings",
                 "dependsOn": [
                   "[resourceId('Microsoft.Web/Sites', variables('webAppName'))]",
-                  "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]"
+                  "[resourceId('Microsoft.Sql/servers', variables('sqlserverName'))]",
+                  "[resourceId('Microsoft.ServiceBus/Namespaces', variables('servicebusNameSpaceName'))]"
                 ],
                 "properties": {
                     "Primary": {
