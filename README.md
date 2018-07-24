@@ -13,13 +13,5 @@ $Sub1 = 'Subscription'
 Login-AzureRmAccount -Credential $cred
 Get-AzureRmSubscription 
 Select-AzureRmSubscription -SubscriptionName $Sub1
-$TemplateFile = 'deploy.json'
-$ResourceGroupName = 'Testing'
-$Location = "West EU"
-New-AzureRmResourceGroup -Name $ResourceGroupName -Location $Location 
-New-AzureRmResourceGroupDeployment -Name ((Get-ChildItem $TemplateFile).BaseName + '-' + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')) `
-                                   -ResourceGroupName $ResourceGroupName `
-                                   -TemplateFile $TemplateFile `
-                                   -Force `
-                                   -Verbose 
+./deploy.ps1 -ApplicationName testwebapp -ResourceGroupSuffix Develop -RG_Location westeurope
 ```
